@@ -1,0 +1,10 @@
+# generated code (oapi-codegen)
+internal/httpserver/*.gen.go
+
+# binaries
+/bin/
+/marketplace
+/server
+
+# env
+.env

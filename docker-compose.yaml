@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: marketplace
+      POSTGRES_PASSWORD: marketplace
+      POSTGRES_DB: marketplace
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketplace -d marketplace"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  flyway:
+    image: flyway/flyway
+    command: >
+      -url=jdbc:postgresql://db:5432/marketplace
+      -user=marketplace
+      -password=marketplace
+      -connectRetries=60
+      migrate
+    volumes:
+      - ./db/migrations:/flyway/sql
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build: .
+    environment:
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://marketplace:marketplace@db:5432/marketplace
+      ORDER_RATE_LIMIT_MINUTES: "1"
+      JWT_SECRET: local-development-secret
+      ACCESS_TOKEN_TTL_MINUTES: "20"
+      REFRESH_TOKEN_TTL_DAYS: "14"
+      CORS_ALLOWED_ORIGINS: "http://localhost:8081"
+    ports:
+      - "8080:8080"
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    environment:
+      SWAGGER_JSON: /spec/openapi.yaml
+      BASE_URL: /swagger
+      PORT: "8080"
+    volumes:
+      - ./api/openapi.yaml:/spec/openapi.yaml:ro
+    ports:
+      - "8081:8080"
+    depends_on:
+      app:
+        condition: service_started
